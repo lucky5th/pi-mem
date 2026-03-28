@@ -127,13 +127,13 @@ async function summarizeWithLLM(sessions: SessionInfo[], childCountMap: Map<stri
 	];
 
 	let model: any = null;
-	let apiKey: string | undefined;
+	let auth: { ok: true; apiKey?: string; headers?: Record<string, string> } | undefined;
 	for (const candidate of candidates) {
 		if (!candidate) continue;
-		const key = await modelRegistryRef.getApiKey(candidate);
-		if (key) { model = candidate; apiKey = key; break; }
+		const result = await modelRegistryRef.getApiKeyAndHeaders(candidate);
+		if (result.ok) { model = candidate; auth = result; break; }
 	}
-	if (!model || !apiKey) return "";
+	if (!model || !auth) return "";
 
 	const listing = sessions.map((s, _i) => {
 		const childCount = childCountMap.get(s.file) || 0;
@@ -165,7 +165,7 @@ async function summarizeWithLLM(sessions: SessionInfo[], childCountMap: Map<stri
 			content: [{ type: "text" as const, text: `${sessions.length} sessions, $${totalCost.toFixed(2)} total cost:\n\n${listing}` }],
 			timestamp: Date.now(),
 		}],
-	}, { apiKey });
+	}, { apiKey: auth.apiKey, headers: auth.headers });
 
 	return response.content
 		.filter((c: any) => c.type === "text")
