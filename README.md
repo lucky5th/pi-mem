@@ -48,6 +48,24 @@ Files in `notes/` and older daily logs are **not** injected — they're accessib
 
 ## Configuration
 
+Settings can be configured via environment variables or a `config.json` file in the memory directory. Environment variables take precedence over file values.
+
+### config.json
+
+Place a `config.json` in your memory directory (default `~/.pi/agent/memory/config.json`):
+
+```json
+{
+  "searchDirs": ["catchup", "projects"],
+  "contextFiles": ["SOUL.md", "AGENTS.md"],
+  "autocommit": true
+}
+```
+
+### Environment variables
+
+Environment variables override `config.json` values when set.
+
 | Env Var | Default | Description |
 |---------|---------|-------------|
 | `PI_MEMORY_DIR` | `~/.pi/agent/memory/` | Root directory for all memory files |

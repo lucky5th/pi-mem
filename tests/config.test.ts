@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert";
 import * as path from "node:path";
 import { buildConfig } from "../lib.ts";
+import { makeTempDir, cleanup, writeFile } from "./helpers.ts";
 
 describe("buildConfig", () => {
 	it("uses defaults when no env vars set", () => {
@@ -77,6 +78,63 @@ describe("buildConfig", () => {
 	it("handles PI_SEARCH_DIRS with extra whitespace and trailing comma", () => {
 		const config = buildConfig({ HOME: "/home/x", PI_SEARCH_DIRS: " catchup ,  projects , " });
 		assert.deepStrictEqual(config.searchDirs, ["catchup", "projects"]);
+	});
+
+	it("reads config.json from memory dir", () => {
+		const memDir = makeTempDir();
+		writeFile(path.join(memDir, "config.json"), JSON.stringify({
+			searchDirs: ["catchup", "projects"],
+			contextFiles: ["SOUL.md"],
+			autocommit: true,
+		}));
+		const config = buildConfig({ HOME: "/home/x", PI_MEMORY_DIR: memDir });
+		assert.deepStrictEqual(config.searchDirs, ["catchup", "projects"]);
+		assert.deepStrictEqual(config.contextFiles, ["SOUL.md"]);
+		assert.strictEqual(config.autocommit, true);
+		cleanup(memDir);
+	});
+
+	it("env vars override config.json values", () => {
+		const memDir = makeTempDir();
+		writeFile(path.join(memDir, "config.json"), JSON.stringify({
+			searchDirs: ["catchup"],
+			contextFiles: ["SOUL.md"],
+			autocommit: true,
+		}));
+		const config = buildConfig({
+			HOME: "/home/x",
+			PI_MEMORY_DIR: memDir,
+			PI_SEARCH_DIRS: "projects,other",
+			PI_CONTEXT_FILES: "AGENTS.md",
+			PI_AUTOCOMMIT: "0",
+		});
+		assert.deepStrictEqual(config.searchDirs, ["projects", "other"]);
+		assert.deepStrictEqual(config.contextFiles, ["AGENTS.md"]);
+		assert.strictEqual(config.autocommit, false);
+		cleanup(memDir);
+	});
+
+	it("ignores malformed config.json", () => {
+		const memDir = makeTempDir();
+		writeFile(path.join(memDir, "config.json"), "not json{{");
+		const config = buildConfig({ HOME: "/home/x", PI_MEMORY_DIR: memDir });
+		assert.deepStrictEqual(config.searchDirs, []);
+		assert.deepStrictEqual(config.contextFiles, []);
+		cleanup(memDir);
+	});
+
+	it("ignores config.json with wrong types", () => {
+		const memDir = makeTempDir();
+		writeFile(path.join(memDir, "config.json"), JSON.stringify({
+			searchDirs: "not-an-array",
+			contextFiles: 42,
+			autocommit: "yes",
+		}));
+		const config = buildConfig({ HOME: "/home/x", PI_MEMORY_DIR: memDir });
+		assert.deepStrictEqual(config.searchDirs, []);
+		assert.deepStrictEqual(config.contextFiles, []);
+		assert.strictEqual(config.autocommit, false);
+		cleanup(memDir);
 	});
 
 	it("falls back to ~ when HOME is undefined", () => {

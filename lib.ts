@@ -21,18 +21,47 @@ export interface MemoryConfig {
 	autocommit: boolean;
 }
 
+export interface FileConfig {
+	dailyDir?: string;
+	contextFiles?: string[];
+	searchDirs?: string[];
+	autocommit?: boolean;
+}
+
+export function loadConfigFile(memoryDir: string): FileConfig {
+	try {
+		const raw = fs.readFileSync(path.join(memoryDir, "config.json"), "utf-8");
+		const parsed = JSON.parse(raw);
+		if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+		const result: FileConfig = {};
+		if (typeof parsed.dailyDir === "string") result.dailyDir = parsed.dailyDir;
+		if (Array.isArray(parsed.contextFiles)) result.contextFiles = parsed.contextFiles.filter((s: unknown) => typeof s === "string");
+		if (Array.isArray(parsed.searchDirs)) result.searchDirs = parsed.searchDirs.filter((s: unknown) => typeof s === "string");
+		if (typeof parsed.autocommit === "boolean") result.autocommit = parsed.autocommit;
+		return result;
+	} catch {
+		return {};
+	}
+}
+
+function parseCommaSeparated(value: string | undefined): string[] | undefined {
+	if (value === undefined) return undefined;
+	const items = value.split(",").map(f => f.trim()).filter(Boolean);
+	return items;
+}
+
 export function buildConfig(env: Record<string, string | undefined> = process.env): MemoryConfig {
 	const memoryDir = env.PI_MEMORY_DIR ?? path.join(env.HOME ?? "~", ".pi", "agent", "memory");
-	const dailyDir = env.PI_DAILY_DIR ?? path.join(memoryDir, "daily");
-	const contextFiles = (env.PI_CONTEXT_FILES ?? "")
-		.split(",")
-		.map(f => f.trim())
-		.filter(Boolean);
-	const searchDirs = (env.PI_SEARCH_DIRS ?? "")
-		.split(",")
-		.map(f => f.trim())
-		.filter(Boolean);
-	const autocommit = env.PI_AUTOCOMMIT === "1" || env.PI_AUTOCOMMIT === "true";
+
+	// Load config.json from memory dir (env vars override file values)
+	const fileConfig = loadConfigFile(memoryDir);
+
+	const dailyDir = env.PI_DAILY_DIR ?? fileConfig.dailyDir ?? path.join(memoryDir, "daily");
+	const contextFiles = parseCommaSeparated(env.PI_CONTEXT_FILES) ?? fileConfig.contextFiles ?? [];
+	const searchDirs = parseCommaSeparated(env.PI_SEARCH_DIRS) ?? fileConfig.searchDirs ?? [];
+	const autocommit = env.PI_AUTOCOMMIT !== undefined
+		? (env.PI_AUTOCOMMIT === "1" || env.PI_AUTOCOMMIT === "true")
+		: (fileConfig.autocommit ?? false);
 
 	return {
 		memoryDir,
