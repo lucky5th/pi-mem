@@ -153,6 +153,16 @@ export function buildMemoryContext(config: MemoryConfig): string {
 		sections.push(`## Daily log: ${yesterday} (yesterday)\n\n${yesterdayContent.trim()}`);
 	}
 
+	// Catchup INDEX.md (last 2 days)
+	const catchupDir = path.join(config.memoryDir, "catchup");
+	for (const d of [today, yesterday]) {
+		const indexPath = path.join(catchupDir, d, "INDEX.md");
+		const indexContent = readFileSafe(indexPath);
+		if (indexContent?.trim()) {
+			sections.push(`## Catchup: ${d}${d === today ? " (today)" : " (yesterday)"}\n\n${indexContent.trim()}`);
+		}
+	}
+
 	if (sections.length === 0) {
 		return "";
 	}
@@ -291,6 +301,17 @@ export function searchMemory(config: MemoryConfig, query: string, maxResults: nu
 	searchDir(config.memoryDir, "");
 	searchDir(config.dailyDir, "daily");
 	searchDir(config.notesDir, "notes");
+
+	// Search catchup files (nested 2 levels: catchup/{date}/*.md)
+	const catchupSearchDir = path.join(config.memoryDir, "catchup");
+	try {
+		const dateDirs = fs.readdirSync(catchupSearchDir, { withFileTypes: true })
+			.filter(d => d.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(d.name));
+		for (const dateDir of dateDirs) {
+			if (lineResults.length >= maxResults) break;
+			searchDir(path.join(catchupSearchDir, dateDir.name), `catchup/${dateDir.name}`);
+		}
+	} catch {}
 
 	return { fileMatches, lineResults };
 }
