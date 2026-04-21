@@ -28,6 +28,11 @@ export interface FileConfig {
 	autocommit?: boolean;
 }
 
+export function getHomeDir(env: Record<string, string | undefined> = process.env) : string {
+	const isWin32 = path.win32.sep === path.sep;
+	return isWin32 ? env.HOMEPATH : env.HOME ?? "~";
+}
+
 export function loadConfigFile(memoryDir: string): FileConfig {
 	try {
 		const raw = fs.readFileSync(path.join(memoryDir, ".pi-mem.json"), "utf-8");
@@ -51,7 +56,8 @@ function parseCommaSeparated(value: string | undefined): string[] | undefined {
 }
 
 export function buildConfig(env: Record<string, string | undefined> = process.env): MemoryConfig {
-	const memoryDir = env.PI_MEMORY_DIR ?? path.join(env.HOME ?? "~", ".pi", "agent", "memory");
+	const home = getHomeDir(env);
+	const memoryDir = env.PI_MEMORY_DIR ?? path.join(home, ".pi", "agent", "memory");
 
 	// Load config.json from memory dir (env vars override file values)
 	const fileConfig = loadConfigFile(memoryDir);
