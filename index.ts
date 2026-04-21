@@ -66,7 +66,9 @@ function gitCommit(message: string) {
 
 // --- Session scanner for "Last 24h" dashboard ---
 
-const SESSIONS_DIR = path.join(process.env.HOME ?? "~", ".pi", "agent", "sessions");
+const isWin32 = path.win32.sep === path.sep;
+const HOME = isWin32 ? process.env.HOMEPATH : process.env.HOME ?? "~";
+const SESSIONS_DIR = path.join(HOME ?? "~", ".pi", "agent", "sessions");
 const SUMMARY_CACHE = path.join(config.dailyDir, "cache.json");
 const REBUILD_INTERVAL_MS = 15 * 60 * 1000;
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
