@@ -188,6 +188,16 @@ export function buildMemoryContext(config: MemoryConfig): string {
 		sections.push(`## Daily log: ${yesterday} (yesterday)\n\n${yesterdayContent.trim()}`);
 	}
 
+	// Auto-inject catchup INDEX.md for today and yesterday if they exist
+	const catchupDir = path.join(config.memoryDir, "catchup");
+	for (const [date, label] of [[today, "today"], [yesterday, "yesterday"]] as const) {
+		const indexPath = path.join(catchupDir, date, "INDEX.md");
+		const catchupContent = readFileSafe(indexPath);
+		if (catchupContent?.trim()) {
+			sections.push(`## Catchup: ${date} (${label})\n\n${catchupContent.trim()}`);
+		}
+	}
+
 	if (sections.length === 0) {
 		return "";
 	}

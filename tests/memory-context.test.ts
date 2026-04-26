@@ -115,6 +115,46 @@ describe("buildMemoryContext", () => {
 		assert.ok(!result.includes("SCRATCHPAD"), "scratchpad should not be in context");
 	});
 
+	it("includes catchup INDEX.md for today when it exists", () => {
+		const config = makeConfig(tmpDir);
+		ensureDirs(config);
+		const today = todayStr();
+		writeFile(`${config.memoryDir}/catchup/${today}/INDEX.md`, "Catchup summary for today");
+		const result = buildMemoryContext(config);
+		assert.ok(result.includes(`## Catchup: ${today} (today)`));
+		assert.ok(result.includes("Catchup summary for today"));
+	});
+
+	it("includes catchup INDEX.md for yesterday when it exists", () => {
+		const config = makeConfig(tmpDir);
+		ensureDirs(config);
+		const yesterday = yesterdayStr();
+		writeFile(`${config.memoryDir}/catchup/${yesterday}/INDEX.md`, "Catchup summary for yesterday");
+		const result = buildMemoryContext(config);
+		assert.ok(result.includes(`## Catchup: ${yesterday} (yesterday)`));
+		assert.ok(result.includes("Catchup summary for yesterday"));
+	});
+
+	it("does not include catchup when INDEX.md does not exist", () => {
+		const config = makeConfig(tmpDir);
+		ensureDirs(config);
+		const result = buildMemoryContext(config);
+		assert.ok(!result.includes("Catchup"));
+	});
+
+	it("catchup appears after daily logs", () => {
+		const config = makeConfig(tmpDir);
+		ensureDirs(config);
+		const today = todayStr();
+		fs.writeFileSync(config.memoryFile, "Memory", "utf-8");
+		writeFile(`${config.dailyDir}/${today}.md`, "Daily log");
+		writeFile(`${config.memoryDir}/catchup/${today}/INDEX.md`, "Catchup index");
+		const result = buildMemoryContext(config);
+		const dailyIdx = result.indexOf("(today)");
+		const catchupIdx = result.indexOf("Catchup:");
+		assert.ok(dailyIdx < catchupIdx, "daily log should come before catchup");
+	});
+
 	it("includes multiple context files in order", () => {
 		const config = makeConfig(tmpDir, { contextFiles: ["A.md", "B.md", "C.md"] });
 		ensureDirs(config);
