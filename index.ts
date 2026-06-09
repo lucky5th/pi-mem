@@ -442,15 +442,16 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (target === "daily") {
-				const filePath = dailyPath(config.dailyDir, todayStr());
+				const date = todayStr(config.timezone);
+				const filePath = dailyPath(config.dailyDir, date);
 				const existing = readFileSafe(filePath) ?? "";
 
 				const separator = existing.trim() ? "\n\n" : "";
 				const stamped = `<!-- ${ts} [${sid}] -->\n${content}`;
 				fs.writeFileSync(filePath, existing + separator + stamped, "utf-8");
-				gitCommit(`daily: ${todayStr()}`);
+				gitCommit(`daily: ${date}`);
 				return {
-					content: [{ type: "text", text: `Appended to daily/${todayStr()}.md` }],
+					content: [{ type: "text", text: `Appended to daily/${date}.md` }],
 					details: { path: filePath, target, mode: "append", sessionId: sid, timestamp: ts },
 				};
 			}
@@ -653,7 +654,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (target === "daily") {
-				const d = date ?? todayStr();
+				const d = date ?? todayStr(config.timezone);
 				const filePath = dailyPath(config.dailyDir, d);
 				const content = readFileSafe(filePath);
 				if (!content) {

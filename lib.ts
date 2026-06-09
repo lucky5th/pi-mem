@@ -19,6 +19,7 @@ export interface MemoryConfig {
 	contextFiles: string[];
 	searchDirs: string[];
 	autocommit: boolean;
+	timezone: string;
 }
 
 export interface FileConfig {
@@ -62,6 +63,7 @@ export function buildConfig(env: Record<string, string | undefined> = process.en
 	const autocommit = env.PI_AUTOCOMMIT !== undefined
 		? (env.PI_AUTOCOMMIT === "1" || env.PI_AUTOCOMMIT === "true")
 		: (fileConfig.autocommit ?? false);
+	const timezone = normalizeTimeZone(env.PI_TIMEZONE ?? env.TZ ?? "UTC");
 
 	return {
 		memoryDir,
@@ -72,26 +74,50 @@ export function buildConfig(env: Record<string, string | undefined> = process.en
 		contextFiles,
 		searchDirs,
 		autocommit,
+		timezone,
 	};
+}
+
+export function normalizeTimeZone(timeZone: string | undefined): string {
+	const candidate = timeZone?.trim() || "UTC";
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(new Date());
+		return candidate;
+	} catch {
+		return "UTC";
+	}
 }
 
 // --- Date/time helpers ---
 
-export function todayStr(): string {
-	return new Date().toISOString().slice(0, 10);
+function localDateParts(date: Date, timeZone: string): { year: number; month: number; day: number } {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: normalizeTimeZone(timeZone),
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(date);
+	const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, Number(part.value)]));
+	return { year: values.year, month: values.month, day: values.day };
 }
 
-export function yesterdayStr(): string {
-	const d = new Date();
-	d.setDate(d.getDate() - 1);
-	return d.toISOString().slice(0, 10);
+function formatDateParts(parts: { year: number; month: number; day: number }): string {
+	return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+export function todayStr(timeZone = "UTC", now = new Date()): string {
+	return formatDateParts(localDateParts(now, timeZone));
+}
+
+export function yesterdayStr(timeZone = "UTC", now = new Date()): string {
+	return daysAgoStr(1, timeZone, now);
 }
 
 /** Get a date string N days ago from today. */
-export function daysAgoStr(n: number): string {
-	const d = new Date();
-	d.setDate(d.getDate() - n);
-	return d.toISOString().slice(0, 10);
+export function daysAgoStr(n: number, timeZone = "UTC", now = new Date()): string {
+	const parts = localDateParts(now, timeZone);
+	const shifted = new Date(Date.UTC(parts.year, parts.month - 1, parts.day - n, 12, 0, 0, 0));
+	return formatDateParts(localDateParts(shifted, timeZone));
 }
 
 export function nowTimestamp(): string {
@@ -346,7 +372,7 @@ const NORMAL_CATCHUP_DAYS = 2;
 export function isLowActivity(config: MemoryConfig): boolean {
 	let activeDays = 0;
 	for (let i = 0; i < ACTIVITY_LOOKBACK_DAYS; i++) {
-		const date = daysAgoStr(i);
+		const date = daysAgoStr(i, config.timezone);
 		const content = readFileSafe(dailyPath(config.dailyDir, date));
 		if (content && content.trim().length >= ACTIVITY_THRESHOLD_BYTES) {
 			activeDays++;
@@ -374,8 +400,8 @@ export function buildMemoryContext(config: MemoryConfig): string {
 		sections.push(`## MEMORY.md (long-term)\n\n${longTerm.trim()}`);
 	}
 
-	const today = todayStr();
-	const yesterday = yesterdayStr();
+	const today = todayStr(config.timezone);
+	const yesterday = yesterdayStr(config.timezone);
 
 	const todayContent = readFileSafe(dailyPath(config.dailyDir, today));
 	if (todayContent?.trim()) {
@@ -403,7 +429,7 @@ export function buildMemoryContext(config: MemoryConfig): string {
 
 	for (let i = 0; i < catchupDays; i++) {
 		if (catchupTotalBytes >= MAX_CATCHUP_TOTAL_BYTES) break;
-		const date = daysAgoStr(i);
+		const date = daysAgoStr(i, config.timezone);
 		const label = i === 0 ? "today" : i === 1 ? "yesterday" : `${i} days ago`;
 		const indexPath = path.join(catchupDir, date, "INDEX.md");
 		let catchupContent = readFileSafe(indexPath)?.trim();

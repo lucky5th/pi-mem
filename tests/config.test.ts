@@ -14,6 +14,7 @@ describe("buildConfig", () => {
 		assert.strictEqual(config.notesDir, "/home/testuser/.pi/agent/memory/notes");
 		assert.deepStrictEqual(config.contextFiles, []);
 		assert.strictEqual(config.autocommit, false);
+		assert.strictEqual(config.timezone, "UTC");
 	});
 
 	it("respects PI_MEMORY_DIR override", () => {
@@ -68,6 +69,21 @@ describe("buildConfig", () => {
 	it("parses PI_SEARCH_DIRS as comma-separated list", () => {
 		const config = buildConfig({ HOME: "/home/x", PI_SEARCH_DIRS: "catchup, projects" });
 		assert.deepStrictEqual(config.searchDirs, ["catchup", "projects"]);
+	});
+
+	it("uses PI_TIMEZONE before TZ", () => {
+		const config = buildConfig({ HOME: "/home/x", TZ: "UTC", PI_TIMEZONE: "America/Los_Angeles" });
+		assert.strictEqual(config.timezone, "America/Los_Angeles");
+	});
+
+	it("falls back to TZ for timezone", () => {
+		const config = buildConfig({ HOME: "/home/x", TZ: "America/New_York" });
+		assert.strictEqual(config.timezone, "America/New_York");
+	});
+
+	it("falls back to UTC for invalid timezone", () => {
+		const config = buildConfig({ HOME: "/home/x", PI_TIMEZONE: "not/a-zone", TZ: "also-bad" });
+		assert.strictEqual(config.timezone, "UTC");
 	});
 
 	it("defaults PI_SEARCH_DIRS to empty array", () => {

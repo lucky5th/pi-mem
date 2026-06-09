@@ -8,9 +8,15 @@ describe("todayStr", () => {
 		assert.match(result, /^\d{4}-\d{2}-\d{2}$/);
 	});
 
-	it("matches current date", () => {
+	it("matches current UTC date by default", () => {
 		const expected = new Date().toISOString().slice(0, 10);
 		assert.strictEqual(todayStr(), expected);
+	});
+
+	it("uses the requested timezone", () => {
+		const now = new Date("2026-06-09T03:30:00.000Z");
+		assert.strictEqual(todayStr("UTC", now), "2026-06-09");
+		assert.strictEqual(todayStr("America/Los_Angeles", now), "2026-06-08");
 	});
 });
 
@@ -25,6 +31,12 @@ describe("yesterdayStr", () => {
 		const yesterday = new Date(yesterdayStr());
 		const diffMs = today.getTime() - yesterday.getTime();
 		assert.strictEqual(diffMs, 24 * 60 * 60 * 1000);
+	});
+
+	it("uses the requested timezone", () => {
+		const now = new Date("2026-06-09T03:30:00.000Z");
+		assert.strictEqual(yesterdayStr("UTC", now), "2026-06-08");
+		assert.strictEqual(yesterdayStr("America/Los_Angeles", now), "2026-06-07");
 	});
 });
 
