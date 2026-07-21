@@ -51,6 +51,7 @@ import {
 	scanSession,
 	isHousekeeping,
 	searchMemory,
+	resolveSessionsDir,
 } from "./lib.ts";
 
 const config = buildConfig();
@@ -67,7 +68,7 @@ function gitCommit(message: string) {
 
 // --- Session scanner for "Last 24h" dashboard ---
 
-const SESSIONS_DIR = path.join(process.env.HOME ?? "~", ".pi", "agent", "sessions");
+const SESSIONS_DIR = resolveSessionsDir();
 const SUMMARY_CACHE = path.join(config.dailyDir, "cache.json");
 const REBUILD_INTERVAL_MS = 15 * 60 * 1000;
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -344,12 +345,10 @@ export default function (pi: ExtensionAPI) {
 		if (rebuildTimer) { clearInterval(rebuildTimer); rebuildTimer = null; }
 	});
 
-	// Inject memory as a trailing system message (not in the main system prompt).
-	// This keeps the system prompt byte-stable across sessions so that KV prefix
-	// caches (e.g., ds4 disk cache keyed on SHA1 of token prefix) get hits.
+	// Inject memory as a trailing user message, leaving the stable system prompt
+	// untouched for prompt caching. Pi 0.81 drops unsupported system-role entries.
 	pi.on("context", async (event) => {
 		const memoryContext = buildMemoryContext(config);
-		if (!memoryContext) return;
 
 		const memoryInstructions = [
 			"## Memory",
@@ -369,8 +368,16 @@ export default function (pi: ExtensionAPI) {
 			memoryContext,
 		].join("\n");
 
-		const messages = [...event.messages, { role: "system", content: memoryInstructions }];
-		return { messages };
+		return {
+			messages: [
+				...event.messages,
+				{
+					role: "user" as const,
+					content: `<pi-mem-injected>\n${memoryInstructions}\n</pi-mem-injected>`,
+					timestamp: Date.now(),
+				},
+			],
+		};
 	});
 
 	pi.on("session_before_compact", async (_event, ctx) => {
