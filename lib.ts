@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -51,8 +52,32 @@ function parseCommaSeparated(value: string | undefined): string[] | undefined {
 	return items;
 }
 
+export function resolveHomeDir(
+	env: Record<string, string | undefined> = process.env,
+	fallback = os.homedir(),
+): string {
+	return env.HOME
+		?? env.USERPROFILE
+		?? (env.HOMEDRIVE && env.HOMEPATH ? `${env.HOMEDRIVE}${env.HOMEPATH}` : undefined)
+		?? fallback;
+}
+
+export function resolveAgentDir(
+	env: Record<string, string | undefined> = process.env,
+	fallbackHome = os.homedir(),
+): string {
+	return env.PI_CODING_AGENT_DIR ?? path.join(resolveHomeDir(env, fallbackHome), ".pi", "agent");
+}
+
+export function resolveSessionsDir(
+	env: Record<string, string | undefined> = process.env,
+	fallbackHome = os.homedir(),
+): string {
+	return path.join(resolveAgentDir(env, fallbackHome), "sessions");
+}
+
 export function buildConfig(env: Record<string, string | undefined> = process.env): MemoryConfig {
-	const memoryDir = env.PI_MEMORY_DIR ?? path.join(env.HOME ?? "~", ".pi", "agent", "memory");
+	const memoryDir = env.PI_MEMORY_DIR ?? path.join(resolveAgentDir(env), "memory");
 
 	// Load config.json from memory dir (env vars override file values)
 	const fileConfig = loadConfigFile(memoryDir);
