@@ -47,6 +47,7 @@ import {
 	parseScratchpad,
 	serializeScratchpad,
 	buildMemoryContext,
+	readMemoryFile,
 	scanSession,
 	isHousekeeping,
 	searchMemory,
@@ -344,12 +345,15 @@ export default function (pi: ExtensionAPI) {
 		if (rebuildTimer) { clearInterval(rebuildTimer); rebuildTimer = null; }
 	});
 
-	pi.on("before_agent_start", async (event, _ctx) => {
+	// Inject memory as a trailing system message (not in the main system prompt).
+	// This keeps the system prompt byte-stable across sessions so that KV prefix
+	// caches (e.g., ds4 disk cache keyed on SHA1 of token prefix) get hits.
+	pi.on("context", async (event) => {
 		const memoryContext = buildMemoryContext(config);
 		if (!memoryContext) return;
 
 		const memoryInstructions = [
-			"\n\n## Memory",
+			"## Memory",
 			"The following memory files have been loaded. Use the memory_write tool to persist important information.",
 			"- Decisions, preferences, and durable facts \u2192 MEMORY.md",
 			"- Day-to-day notes and running context \u2192 daily/<YYYY-MM-DD>.md",
@@ -366,9 +370,8 @@ export default function (pi: ExtensionAPI) {
 			memoryContext,
 		].join("\n");
 
-		return {
-			systemPrompt: event.systemPrompt + memoryInstructions,
-		};
+		const messages = [...event.messages, { role: "system", content: memoryInstructions }];
+		return { messages };
 	});
 
 	pi.on("session_before_compact", async (_event, ctx) => {
@@ -440,15 +443,16 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (target === "daily") {
-				const filePath = dailyPath(config.dailyDir, todayStr());
+				const date = todayStr(config.timezone);
+				const filePath = dailyPath(config.dailyDir, date);
 				const existing = readFileSafe(filePath) ?? "";
 
 				const separator = existing.trim() ? "\n\n" : "";
 				const stamped = `<!-- ${ts} [${sid}] -->\n${content}`;
 				fs.writeFileSync(filePath, existing + separator + stamped, "utf-8");
-				gitCommit(`daily: ${todayStr()}`);
+				gitCommit(`daily: ${date}`);
 				return {
-					content: [{ type: "text", text: `Appended to daily/${todayStr()}.md` }],
+					content: [{ type: "text", text: `Appended to daily/${date}.md` }],
 					details: { path: filePath, target, mode: "append", sessionId: sid, timestamp: ts },
 				};
 			}
@@ -582,7 +586,7 @@ export default function (pi: ExtensionAPI) {
 			"- 'long_term': Read MEMORY.md",
 			"- 'scratchpad': Read SCRATCHPAD.md",
 			"- 'daily': Read a specific day's log (default: today). Pass date as YYYY-MM-DD.",
-			"- 'file': Read any file by name (e.g. 'SOUL.md'). Pass filename.",
+			"- 'file': Read any file by exact path (e.g. 'SOUL.md', 'catchup/2026-04-26/file.md'). Pass filename. If the exact file is missing and the directory has an INDEX.md with <!-- file:... --> entries, I resolve by title/query within that index.",
 			"- 'note': Read a file from notes/ (e.g. 'lessons.md'). Pass filename.",
 			"- 'list': List all files in the memory directory.",
 		].join("\n"),
@@ -596,6 +600,7 @@ export default function (pi: ExtensionAPI) {
 			filename: Type.Optional(
 				Type.String({ description: "Filename for 'file' target (e.g. 'lessons.md', 'SOUL.md')" }),
 			),
+
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			ensureDirs(config);
@@ -615,6 +620,13 @@ export default function (pi: ExtensionAPI) {
 					const dailyFiles = fs.readdirSync(config.dailyDir).filter(f => f.endsWith(".md")).sort().reverse();
 					if (dailyFiles.length > 0) sections.push(`Daily logs (${dailyFiles.length}):\n${dailyFiles.slice(0, 10).map(f => `- daily/${f}`).join("\n")}${dailyFiles.length > 10 ? `\n  ... and ${dailyFiles.length - 10} more` : ""}`);
 				} catch {}
+				try {
+					const catchupDir = path.join(config.memoryDir, "catchup");
+					const catchupDates = fs.readdirSync(catchupDir).filter(f => {
+						try { return fs.statSync(path.join(catchupDir, f)).isDirectory(); } catch { return false; }
+					}).sort().reverse();
+					if (catchupDates.length > 0) sections.push(`Catchup (${catchupDates.length} dates):\n${catchupDates.slice(0, 10).map(d => `- catchup/${d}/`).join("\n")}${catchupDates.length > 10 ? `\n  ... and ${catchupDates.length - 10} more` : ""}`);
+				} catch {}
 				if (sections.length === 0) {
 					return { content: [{ type: "text", text: "Memory directory is empty." }], details: {} };
 				}
@@ -625,13 +637,8 @@ export default function (pi: ExtensionAPI) {
 				if (!filename) {
 					return { content: [{ type: "text", text: "Error: 'filename' is required for target 'file'." }], details: {} };
 				}
-				const safe = path.basename(filename);
-				const filePath = path.join(config.memoryDir, safe);
-				const content = readFileSafe(filePath);
-				if (!content) {
-					return { content: [{ type: "text", text: `File not found: ${safe}` }], details: {} };
-				}
-				return { content: [{ type: "text", text: content }], details: { path: filePath, filename: safe } };
+				const result = readMemoryFile(config, filename);
+				return { content: [{ type: "text", text: result.text }], details: result.details };
 			}
 
 			if (target === "note") {
@@ -648,7 +655,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (target === "daily") {
-				const d = date ?? todayStr();
+				const d = date ?? todayStr(config.timezone);
 				const filePath = dailyPath(config.dailyDir, d);
 				const content = readFileSafe(filePath);
 				if (!content) {

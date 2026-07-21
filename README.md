@@ -1,4 +1,9 @@
 <p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+  <a href="https://www.npmjs.com/package/@askjo/pi-mem"><img src="https://img.shields.io/npm/v/@askjo/pi-mem" alt="npm version" /></a>
+  <a href="https://github.com/jo-inc/pi-mem/stargazers"><img src="https://img.shields.io/github/stars/jo-inc/pi-mem" alt="GitHub stars" /></a>
+</p>
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="logo-dark.png" />
     <source media="(prefers-color-scheme: light)" srcset="logo.png" />
@@ -73,6 +78,7 @@ Environment variables override `.pi-mem.json` values when set.
 | `PI_CONTEXT_FILES` | *(empty)* | Comma-separated list of extra files to inject into context (e.g. `SOUL.md,AGENTS.md,HEARTBEAT.md`) |
 | `PI_SEARCH_DIRS` | *(empty)* | Comma-separated list of subdirectories (relative to `PI_MEMORY_DIR`) to include in `memory_search`. Searched recursively one level deep. (e.g. `catchup,projects`) |
 | `PI_AUTOCOMMIT` | `false` | When `1` or `true`, auto-commit to git after every write |
+| `PI_TIMEZONE` | `TZ`, then `UTC` | IANA timezone used for daily log filenames and today/yesterday context windows. Invalid values fall back to `UTC`. |
 
 ## Dashboard Widget
 
@@ -95,3 +101,13 @@ pi install git:github.com/jo-inc/pi-mem
 ## License
 
 MIT
+
+## Pi Ecosystem
+
+| Package | Description |
+|---------|-------------|
+| [pi-reflect](https://github.com/jo-inc/pi-reflect) | Self-improving behavioral files |
+| [pi-boss](https://github.com/skyfallsin/pi-boss) | Multi-agent orchestration via tmux |
+| [pi-room](https://github.com/skyfallsin/pi-room) | Multi-agent awareness and coordination |
+| [pi-vertex-anthropic](https://github.com/skyfallsin/pi-vertex-anthropic) | Claude via Google Cloud Vertex AI |
+| [pi-skill-posthog](https://github.com/skyfallsin/pi-skill-posthog) | PostHog analytics skill for pi agents |

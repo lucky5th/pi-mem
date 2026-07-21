@@ -2,7 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { readFileSafe, ensureDirs } from "../lib.ts";
+import { readFileSafe, ensureDirs, safeResolvePath } from "../lib.ts";
 import { makeTempDir, cleanup, makeConfig, writeFile } from "./helpers.ts";
 
 let tmpDir: string;
@@ -61,5 +61,43 @@ describe("ensureDirs", () => {
 		fs.writeFileSync(testFile, "keep me", "utf-8");
 		ensureDirs(config);
 		assert.strictEqual(fs.readFileSync(testFile, "utf-8"), "keep me");
+	});
+});
+
+describe("safeResolvePath", () => {
+	it("allows simple filenames", () => {
+		const result = safeResolvePath("/mem", "SOUL.md");
+		assert.ok(result);
+		assert.strictEqual(result.normalized, "SOUL.md");
+		assert.strictEqual(result.resolved, path.join("/mem", "SOUL.md"));
+	});
+
+	it("allows subdirectory paths", () => {
+		const result = safeResolvePath("/mem", "catchup/2026-04-26/file.md");
+		assert.ok(result);
+		assert.strictEqual(result.normalized, "catchup/2026-04-26/file.md");
+		assert.strictEqual(result.resolved, path.join("/mem", "catchup/2026-04-26/file.md"));
+	});
+
+	it("blocks .. traversal", () => {
+		assert.strictEqual(safeResolvePath("/mem", "../etc/passwd"), null);
+	});
+
+	it("blocks nested .. traversal", () => {
+		assert.strictEqual(safeResolvePath("/mem", "foo/../../etc/passwd"), null);
+	});
+
+	it("blocks deep nested .. traversal", () => {
+		assert.strictEqual(safeResolvePath("/mem", "catchup/2026/../../../etc/passwd"), null);
+	});
+
+	it("blocks absolute paths", () => {
+		assert.strictEqual(safeResolvePath("/mem", "/etc/passwd"), null);
+	});
+
+	it("allows paths that resolve within memoryDir after normalization", () => {
+		const result = safeResolvePath("/mem", "catchup/2026/../2026/file.md");
+		assert.ok(result);
+		assert.strictEqual(result.normalized, "catchup/2026/file.md");
 	});
 });
