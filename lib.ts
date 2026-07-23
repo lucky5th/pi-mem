@@ -56,6 +56,7 @@ export function resolveHomeDir(
 	env: Record<string, string | undefined> = process.env,
 	fallback = os.homedir(),
 ): string {
+	fallback ??= os.homedir();
 	return env.HOME
 		?? env.USERPROFILE
 		?? (env.HOMEDRIVE && env.HOMEPATH ? `${env.HOMEDRIVE}${env.HOMEPATH}` : undefined)
@@ -66,6 +67,7 @@ export function resolveAgentDir(
 	env: Record<string, string | undefined> = process.env,
 	fallbackHome = os.homedir(),
 ): string {
+	fallbackHome ??= os.homedir();
 	return env.PI_CODING_AGENT_DIR ?? path.join(resolveHomeDir(env, fallbackHome), ".pi", "agent");
 }
 
@@ -73,6 +75,7 @@ export function resolveSessionsDir(
 	env: Record<string, string | undefined> = process.env,
 	fallbackHome = os.homedir(),
 ): string {
+	fallbackHome ??= os.homedir();
 	return path.join(resolveAgentDir(env, fallbackHome), "sessions");
 }
 

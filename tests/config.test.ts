@@ -183,6 +183,12 @@ describe("buildConfig", () => {
 		assert.strictEqual(resolveAgentDir({}), path.join(os.homedir(), ".pi", "agent"));
 	});
 
+	it("uses os.homedir() when fallback is null or undefined", () => {
+		assert.strictEqual(resolveHomeDir({}, null as unknown as string), os.homedir());
+		assert.strictEqual(resolveAgentDir({}, null as unknown as string), path.join(os.homedir(), ".pi", "agent"));
+		assert.strictEqual(resolveSessionsDir({}, null as unknown as string), path.join(os.homedir(), ".pi", "agent", "sessions"));
+	});
+
 	it("supports Windows USERPROFILE", () => {
 		assert.strictEqual(resolveHomeDir({ USERPROFILE: "C:\\Users\\test" }, "/fallback"), path.normalize("C:\\Users\\test"));
 	});
