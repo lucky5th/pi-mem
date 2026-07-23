@@ -8,11 +8,11 @@ import { makeTempDir, cleanup, writeFile } from "./helpers.ts";
 describe("buildConfig", () => {
 	it("uses defaults when no env vars set", () => {
 		const config = buildConfig({ HOME: "/home/testuser" });
-		assert.strictEqual(config.memoryDir, "/home/testuser/.pi/agent/memory");
-		assert.strictEqual(config.memoryFile, "/home/testuser/.pi/agent/memory/MEMORY.md");
-		assert.strictEqual(config.scratchpadFile, "/home/testuser/.pi/agent/memory/SCRATCHPAD.md");
-		assert.strictEqual(config.dailyDir, "/home/testuser/.pi/agent/memory/daily");
-		assert.strictEqual(config.notesDir, "/home/testuser/.pi/agent/memory/notes");
+		assert.strictEqual(config.memoryDir, path.normalize("/home/testuser/.pi/agent/memory"));
+		assert.strictEqual(config.memoryFile, path.normalize("/home/testuser/.pi/agent/memory/MEMORY.md"));
+		assert.strictEqual(config.scratchpadFile, path.normalize("/home/testuser/.pi/agent/memory/SCRATCHPAD.md"));
+		assert.strictEqual(config.dailyDir, path.normalize("/home/testuser/.pi/agent/memory/daily"));
+		assert.strictEqual(config.notesDir, path.normalize("/home/testuser/.pi/agent/memory/notes"));
 		assert.deepStrictEqual(config.contextFiles, []);
 		assert.strictEqual(config.autocommit, false);
 		assert.strictEqual(config.timezone, "UTC");
@@ -24,34 +24,19 @@ describe("buildConfig", () => {
       PI_MEMORY_DIR: path.normalize("/custom/mem"),
     });
     assert.strictEqual(config.memoryDir, path.normalize("/custom/mem"));
-    assert.strictEqual(
-      config.memoryFile,
-      path.normalize("/custom/mem/MEMORY.md"),
-    );
-    assert.strictEqual(
-      config.scratchpadFile,
-      path.normalize("/custom/mem/SCRATCHPAD.md"),
-    );
+    assert.strictEqual(config.memoryFile, path.normalize("/custom/mem/MEMORY.md"));
+    assert.strictEqual(config.scratchpadFile,path.normalize("/custom/mem/SCRATCHPAD.md"));
     assert.strictEqual(config.notesDir, path.normalize("/custom/mem/notes"));
   });
 
   it("respects PI_DAILY_DIR override independently of memory dir", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_DAILY_DIR: path.normalize("/other/daily"),
-    });
+    const config = buildConfig({HOME: path.normalize("/home/x"), PI_DAILY_DIR: path.normalize("/other/daily")});
     assert.strictEqual(config.dailyDir, path.normalize("/other/daily"));
-    assert.strictEqual(
-      config.memoryDir,
-      path.normalize("/home/x/.pi/agent/memory"),
-    );
+    assert.strictEqual(config.memoryDir, path.normalize("/home/x/.pi/agent/memory"));
   });
 
   it("parses PI_CONTEXT_FILES as comma-separated list", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_CONTEXT_FILES: "SOUL.md, AGENTS.md, HEARTBEAT.md",
-    });
+    const config = buildConfig({HOME: path.normalize("/home/x"), PI_CONTEXT_FILES: "SOUL.md, AGENTS.md, HEARTBEAT.md"});
     assert.deepStrictEqual(config.contextFiles, [
       "SOUL.md",
       "AGENTS.md",
@@ -60,58 +45,37 @@ describe("buildConfig", () => {
   });
 
   it("handles empty PI_CONTEXT_FILES", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_CONTEXT_FILES: "",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_CONTEXT_FILES: "" });
     assert.deepStrictEqual(config.contextFiles, []);
   });
 
   it("handles PI_CONTEXT_FILES with extra whitespace and trailing comma", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_CONTEXT_FILES: " A.md ,  B.md , ",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_CONTEXT_FILES: " A.md ,  B.md , " });
     assert.deepStrictEqual(config.contextFiles, ["A.md", "B.md"]);
   });
 
   it("enables autocommit with PI_AUTOCOMMIT=1", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_AUTOCOMMIT: "1",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_AUTOCOMMIT: "1" });
     assert.strictEqual(config.autocommit, true);
   });
 
   it("enables autocommit with PI_AUTOCOMMIT=true", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_AUTOCOMMIT: "true",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_AUTOCOMMIT: "true" });
     assert.strictEqual(config.autocommit, true);
   });
 
   it("does not enable autocommit with PI_AUTOCOMMIT=0", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_AUTOCOMMIT: "0",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_AUTOCOMMIT: "0" });
     assert.strictEqual(config.autocommit, false);
   });
 
   it("does not enable autocommit with PI_AUTOCOMMIT=yes", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_AUTOCOMMIT: "yes",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_AUTOCOMMIT: "yes" });
     assert.strictEqual(config.autocommit, false);
   });
 
   it("parses PI_SEARCH_DIRS as comma-separated list", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_SEARCH_DIRS: "catchup, projects",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_SEARCH_DIRS: "catchup, projects" });
     assert.deepStrictEqual(config.searchDirs, ["catchup", "projects"]);
   });
 
@@ -136,10 +100,7 @@ describe("buildConfig", () => {
 	});
 
   it("handles PI_SEARCH_DIRS with extra whitespace and trailing comma", () => {
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_SEARCH_DIRS: " catchup ,  projects , ",
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_SEARCH_DIRS: " catchup ,  projects , " });
     assert.deepStrictEqual(config.searchDirs, ["catchup", "projects"]);
   });
 
@@ -153,10 +114,7 @@ describe("buildConfig", () => {
         autocommit: true,
       }),
     );
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_MEMORY_DIR: memDir,
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_MEMORY_DIR: memDir });
     assert.deepStrictEqual(config.searchDirs, ["catchup", "projects"]);
     assert.deepStrictEqual(config.contextFiles, ["SOUL.md"]);
     assert.strictEqual(config.autocommit, true);
@@ -189,10 +147,7 @@ describe("buildConfig", () => {
   it("ignores malformed .pi-mem.json", () => {
     const memDir = makeTempDir();
     writeFile(path.join(memDir, ".pi-mem.json"), "not json{{");
-    const config = buildConfig({
-      HOME: path.normalize("/home/x"),
-      PI_MEMORY_DIR: memDir,
-    });
+    const config = buildConfig({ HOME: path.normalize("/home/x"), PI_MEMORY_DIR: memDir });
     assert.deepStrictEqual(config.searchDirs, []);
     assert.deepStrictEqual(config.contextFiles, []);
     cleanup(memDir);
