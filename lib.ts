@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -57,8 +58,7 @@ function parseCommaSeparated(value: string | undefined): string[] | undefined {
 }
 
 export function buildConfig(env: Record<string, string | undefined> = process.env): MemoryConfig {
-	const home = getHomeDir(env);
-	const memoryDir = env.PI_MEMORY_DIR ?? path.join(home, ".pi", "agent", "memory");
+	const memoryDir = env.PI_MEMORY_DIR ?? path.join(env.HOME ?? os.homedir(), ".pi", "agent", "memory");
 
 	// Load config.json from memory dir (env vars override file values)
 	const fileConfig = loadConfigFile(memoryDir);

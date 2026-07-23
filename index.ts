@@ -29,6 +29,7 @@ import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { StringEnum, completeSimple, getModel } from "@mariozechner/pi-ai";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
@@ -67,8 +68,8 @@ function gitCommit(message: string) {
 }
 
 // --- Session scanner for "Last 24h" dashboard ---
-const home = getHomeDir();
-const SESSIONS_DIR = path.join(home, ".pi", "agent", "sessions");
+
+const SESSIONS_DIR = path.join(os.homedir(), ".pi", "agent", "sessions");
 const SUMMARY_CACHE = path.join(config.dailyDir, "cache.json");
 const REBUILD_INTERVAL_MS = 15 * 60 * 1000;
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
