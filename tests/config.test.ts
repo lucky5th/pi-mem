@@ -7,7 +7,7 @@ import { makeTempDir, cleanup, writeFile } from "./helpers.ts";
 
 describe("buildConfig", () => {
 	it("uses defaults when no env vars set", () => {
-		const config = buildConfig({ HOME: "/home/testuser" });
+		const config = buildConfig({ HOME: path.normalize("/home/testuser") });
 		assert.strictEqual(config.memoryDir, path.normalize("/home/testuser/.pi/agent/memory"));
 		assert.strictEqual(config.memoryFile, path.normalize("/home/testuser/.pi/agent/memory/MEMORY.md"));
 		assert.strictEqual(config.scratchpadFile, path.normalize("/home/testuser/.pi/agent/memory/SCRATCHPAD.md"));
