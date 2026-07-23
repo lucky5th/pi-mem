@@ -52,7 +52,6 @@ import {
 	scanSession,
 	isHousekeeping,
 	searchMemory,
-	getHomeDir
 } from "./lib.ts";
 
 const config = buildConfig();

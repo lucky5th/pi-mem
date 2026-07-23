@@ -30,11 +30,6 @@ export interface FileConfig {
 	autocommit?: boolean;
 }
 
-export function getHomeDir(env: Record<string, string | undefined> = process.env) : string {
-	const isWin32 = path.win32.sep === path.sep;
-	return isWin32 ? env.HOMEPATH : env.HOME ?? "~";
-}
-
 export function loadConfigFile(memoryDir: string): FileConfig {
 	try {
 		const raw = fs.readFileSync(path.join(memoryDir, ".pi-mem.json"), "utf-8");
